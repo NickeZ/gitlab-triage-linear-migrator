@@ -82,9 +82,9 @@ module Gitlab
             issue_created
           end
 
-          def import_comments(_gitlab_issue, discussions, linear_id)
+          def import_comments(gitlab_issue, discussions, linear_id)
             discussions.each do |discussion|
-              process_discussion(discussion["notes"], linear_id) if valid_discussion?(discussion["notes"])
+              process_discussion(discussion["notes"], linear_id, gitlab_issue.resource[:project_id]) if valid_discussion?(discussion["notes"])
             end
           end
 
@@ -105,35 +105,56 @@ module Gitlab
             assetUrl
           end
 
+          def replace_images(body, project_id)
+              assets = Hash.new
+              body.scan(/\[[^\]]*\]\(([^\)]*)\)/).each do |match|
+                secret = match[0].split('/')[2]
+                filename = match[0].split('/')[3]
+                url = "https://gitlab.com/api/v4/projects/#{project_id}/uploads/#{secret}/#{filename}"
+                content_type = "image/#{filename.rpartition('.')[2]}"
+                uri = URI.parse(url)
+                headers = {'Authorization' => "Bearer #{ENV['GITLAB_API_TOKEN']}"}
+                response = Net::HTTP.get_response(uri,headers)
+                linear_asset = file_upload(content_type, filename, response.body)
+                assets[match[0]] = linear_asset
+              end
+              assets.each do |old, new|
+                body.gsub!(old, new)
+              end
+              body
+          end
+
           private
 
           def valid_discussion?(notes)
             notes && !notes.empty? && notes.none? { |note| note["system"] }
           end
 
-          def process_discussion(notes, linear_id)
+          def process_discussion(notes, linear_id, project_id)
             return if notes.empty?
 
             if notes.size > 1
-              process_threaded_comments(notes, linear_id)
+              process_threaded_comments(notes, linear_id, project_id)
             else
-              create_comment_from_note(notes.first, linear_id)
+              create_comment_from_note(notes.first, linear_id, project_id)
             end
           end
 
-          def process_threaded_comments(notes, linear_id)
+          def process_threaded_comments(notes, linear_id, project_id)
             parent_note = notes.first
-            parent_comment = create_comment_from_note(parent_note, linear_id)
+            parent_comment = create_comment_from_note(parent_note, linear_id, project_id)
             parent_external_id = parent_comment["id"]
 
             notes[1..].each do |child_note|
-              create_comment_from_note(child_note, linear_id, parent_external_id)
+              create_comment_from_note(child_note, linear_id, parent_external_id, project_id)
             end
           end
 
-          def create_comment_from_note(note, linear_id, parent_id = nil)
+          def create_comment_from_note(note, linear_id, parent_id = nil, project_id)
+            body = replace_images(note["body"], project_id)
+
             @linear_interface.create_comment(
-              body: note["body"],
+              body:,
               linear_issue_id: linear_id,
               author_name: note["author"]["name"],
               parent_id:,
