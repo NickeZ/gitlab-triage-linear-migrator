@@ -94,6 +94,20 @@ module Gitlab
             }
           GRAPHQL
 
+          FILE_UPLOAD = <<~GRAPHQL
+            mutation($contentType: String!, $filename: String!, $size: Int!) {
+              fileUpload(contentType: $contentType, filename: $filename, size: $size) {
+                uploadFile {
+                  assetUrl
+                  uploadUrl
+                  headers { key, value }
+                }
+                success
+              }
+            }
+          GRAPHQL
+
+
           def initialize(graphql_client: GraphqlClient)
             @graphql_client = graphql_client
           end
@@ -101,6 +115,12 @@ module Gitlab
           def find_label(label)
             response = @graphql_client.query(FIND_LABEL_QUERY, { label: })
             response["data"]["issueLabels"]["nodes"].first["id"]
+          end
+
+          def file_upload(content_type, filename, size)
+            response = @graphql_client.mutation(FILE_UPLOAD, { contentType: content_type, filename:, size: })
+            raise StandardError, "file upload not successful" if !response["data"]["fileUpload"]["success"]
+            response["data"]["fileUpload"]["uploadFile"]
           end
 
           def update_labels(issue_id, labels)

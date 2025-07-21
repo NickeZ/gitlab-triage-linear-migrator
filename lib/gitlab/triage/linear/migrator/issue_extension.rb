@@ -76,6 +76,21 @@ module Gitlab
                            end.to_s
 
             begin
+              assets = Hash.new
+              self.resource[:description].scan(/\[[^\]]*\]\(([^\)]*)\)/).each do |match|
+                secret = match[0].split('/')[2]
+                filename = match[0].split('/')[3]
+                url = "https://gitlab.com/api/v4/projects/#{self.resource[:project_id]}/uploads/#{secret}/#{filename}"
+                content_type = "image/#{filename.rpartition('.')[2]}"
+                uri = URI.parse(url)
+                headers = {'Authorization' => "Bearer #{ENV['GITLAB_API_TOKEN']}"}
+                response = Net::HTTP.get_response(uri,headers)
+                linear_asset = connector.file_upload(content_type, filename, response.body)
+                assets[match[0]] = linear_asset
+              end
+              assets.each do |old, new|
+                self.resource[:description].gsub!(old, new)
+              end
               log_processing_issue
               issue = connector.import_issue(self, set_state:, project_name:)
             rescue StandardError => e

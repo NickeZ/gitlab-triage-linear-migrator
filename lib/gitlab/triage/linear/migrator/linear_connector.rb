@@ -88,6 +88,23 @@ module Gitlab
             end
           end
 
+          def file_upload(content_type, filename, content)
+            size = content.length
+            uploadFile = @linear_interface.file_upload(content_type, filename, size)
+            uploadUrl = uploadFile["uploadUrl"]
+            assetUrl = uploadFile["assetUrl"]
+            headers = Hash.new
+            uploadFile["headers"].each do |item|
+              headers[item["key"]] = item["value"]
+            end
+            headers["Content-Type"] = content_type
+            headers["Cache-Control"] = "public, max-age=31536000"
+            uri = URI.parse(uploadUrl)
+
+            response = Net::HTTP.put(uri, content, headers);
+            assetUrl
+          end
+
           private
 
           def valid_discussion?(notes)
