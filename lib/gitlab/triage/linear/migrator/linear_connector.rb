@@ -107,11 +107,11 @@ module Gitlab
 
           def replace_images(body, project_id)
               assets = Hash.new
-              body.scan(/\[[^\]]*\]\(([^\)]*)\)/).each do |match|
+              body.scan(/\[[^\]]*\]\(([^\)]+)\)/).each do |match|
                 gitlab_asset_uri = URI.parse(match[0])
                 # If the linked asset doesn't have a hostname, it hosted by
-                # gitlab and needs to be downlaoded
-                if gitlab_asset_uri.hostname.nil?
+                # gitlab and needs to be downloaded
+                if !gitlab_asset_uri.nil? && gitlab_asset_uri.hostname.nil?
                   secret = gitlab_asset_uri.path.split('/')[2]
                   filename = gitlab_asset_uri.path.split('/')[3]
                   uri = URI.parse("https://gitlab.com/api/v4/projects/#{project_id}/uploads/#{secret}/#{filename}")
