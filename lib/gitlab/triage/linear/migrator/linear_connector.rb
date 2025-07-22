@@ -108,15 +108,20 @@ module Gitlab
           def replace_images(body, project_id)
               assets = Hash.new
               body.scan(/\[[^\]]*\]\(([^\)]*)\)/).each do |match|
-                secret = match[0].split('/')[2]
-                filename = match[0].split('/')[3]
-                url = "https://gitlab.com/api/v4/projects/#{project_id}/uploads/#{secret}/#{filename}"
-                content_type = "image/#{filename.rpartition('.')[2]}"
-                uri = URI.parse(url)
-                headers = {'Authorization' => "Bearer #{ENV['GITLAB_API_TOKEN']}"}
-                response = Net::HTTP.get_response(uri,headers)
-                linear_asset = file_upload(content_type, filename, response.body)
-                assets[match[0]] = linear_asset
+                gitlab_asset_uri = URI.parse(match[0])
+                # If the linked asset doesn't have a hostname, it hosted by
+                # gitlab and needs to be downlaoded
+                if gitlab_asset_uri.hostname.nil?
+                  secret = gitlab_asset_uri.path.split('/')[2]
+                  filename = gitlab_asset_uri.path.split('/')[3]
+                  uri = URI.parse("https://gitlab.com/api/v4/projects/#{project_id}/uploads/#{secret}/#{filename}")
+                  headers = {'Authorization' => "Bearer #{ENV['GITLAB_API_TOKEN']}"}
+                  response = Net::HTTP.get_response(uri, headers)
+                  IO.binwrite(filename, response.body)
+                  content_type = `file -b --mime-type #{filename}`.strip
+                  linear_asset = file_upload(content_type, filename, response.body)
+                  assets[gitlab_asset_uri.path] = linear_asset
+                end
               end
               assets.each do |old, new|
                 body.gsub!(old, new)
