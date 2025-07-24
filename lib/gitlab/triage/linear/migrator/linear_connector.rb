@@ -156,7 +156,9 @@ module Gitlab
           end
 
           def create_comment_from_note(note, linear_id, parent_id = nil, project_id)
-            body = replace_images(note["body"], project_id)
+            if !note["body"].nil?
+              body = replace_images(note["body"], project_id)
+            end
 
             @linear_interface.create_comment(
               body:,

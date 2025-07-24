@@ -76,8 +76,10 @@ module Gitlab
                            end.to_s
 
             begin
-              self.resource[:description] = connector.replace_images(self.resource[:description], self.resource[:project_id])
               log_processing_issue
+              if !self.resource[:description].nil?
+                self.resource[:description] = connector.replace_images(self.resource[:description], self.resource[:project_id])
+              end
               issue = connector.import_issue(self, set_state:, project_name:)
             rescue StandardError => e
               handle_error(e.message, project_name)
