@@ -78,14 +78,9 @@ module Gitlab
 
           FIND_LINEAR_ISSUE_BY_GITLAB_URL_QUERY = <<~GRAPHQL
             query($gitlabUrl: String!) {
-              issueSearch(
-                filter: {
-                  comments: {
-                    body: {
-                      contains: "Original issue: $gitlabUrl"
-                    }
-                  }
-                }
+              searchIssues(
+                includeComments: true,
+                term: $gitlabUrl
               ) {
                 nodes {
                   id
@@ -146,8 +141,8 @@ module Gitlab
           end
 
           def find_linear_issue_by_gitlab_url(gitlab_url)
-            response = @graphql_client.query(FIND_LINEAR_ISSUE_BY_GITLAB_URL_QUERY, { gitlabUrl: gitlab_url })
-            response["data"]["issueSearch"]["nodes"].first["id"]
+            response = @graphql_client.query(FIND_LINEAR_ISSUE_BY_GITLAB_URL_QUERY, { gitlabUrl: "Original issue: #{gitlab_url}" })
+            response["data"]["searchIssues"]["nodes"].first["id"]
           end
 
           def create_issue(issue_data)

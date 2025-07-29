@@ -242,7 +242,7 @@ module Gitlab
           def determine_assignee_id(gitlab_issue)
             (return unless gitlab_issue.resource[:assignees]&.length&.positive?
 
-             @linear_interface.get_user_id_by_email(gitlab_issue.resource[:assignees].first[:email])
+             @linear_interface.get_user_id_by_email(gitlab_issue.resource[:assignees].first[:public_email])
             )
           end
 
@@ -259,7 +259,8 @@ module Gitlab
             if gitlab_issue.resource["epic"]
               epic_id = gitlab_issue.resource["epic"]["id"]
               epic_id_in_linear = get_linear_id_from_migration_map(gitlab_type: "epic", gitlab_id: epic_id)
-              epic_id_in_linear = @linear_interface.find_linear_issue_by_gitlab_url("#{gitlab_issue.host_url}#{gitlab_issue.resource["epic"]["url"]}") if epic_id_in_linear.nil?
+              uri = URI(gitlab_issue.resource["web_url"])
+              epic_id_in_linear = @linear_interface.find_linear_issue_by_gitlab_url("https://#{uri.hostname}#{gitlab_issue.resource["epic"]["url"]}") if epic_id_in_linear.nil?
             end
             epic_id_in_linear
           end
